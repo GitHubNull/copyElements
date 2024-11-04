@@ -2,6 +2,7 @@ package top.oxff;
 
 import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.logging.Logging;
 import top.oxff.ui.CopyElementsContextMenuItemsProvider;
 
 public class CopyElements implements BurpExtension {
@@ -12,17 +13,19 @@ public class CopyElements implements BurpExtension {
     private static final String EXTENSION_LICENSE = "MIT";
 
     public static MontoyaApi api;
+    public static Logging logger;
 
     @Override
     public void initialize(MontoyaApi montoyaApi) {
         api = montoyaApi;
+        logger = montoyaApi.logging();
         montoyaApi.extension().setName(EXTENSION_NAME);
 
-        montoyaApi.logging().logToOutput("HttpMocker loaded");
-        montoyaApi.logging().logToOutput("Version: " + EXTENSION_VERSION);
-        montoyaApi.logging().logToOutput("Author: " + EXTENSION_AUTHOR);
-        montoyaApi.logging().logToOutput("License: " + EXTENSION_LICENSE);
-        montoyaApi.logging().logToOutput("Description: " + EXTENSION_DESCRIPTION);
+        logger.logToOutput("HttpMocker loaded");
+        logger.logToOutput("Version: " + EXTENSION_VERSION);
+        logger.logToOutput("Author: " + EXTENSION_AUTHOR);
+        logger.logToOutput("License: " + EXTENSION_LICENSE);
+        logger.logToOutput("Description: " + EXTENSION_DESCRIPTION);
 
         api.userInterface().registerContextMenuItemsProvider(new CopyElementsContextMenuItemsProvider(api));
     }

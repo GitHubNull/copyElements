@@ -6,6 +6,7 @@ import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
 import burp.api.montoya.ui.contextmenu.ContextMenuItemsProvider;
+import top.oxff.model.ValuesType;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,14 +34,38 @@ public class CopyElementsContextMenuItemsProvider implements ContextMenuItemsPro
         JMenuItem copyHeaderKeysMenuItem = new JMenuItem("copyHeaderKeys");
         JMenuItem copyPathWithoutQueryMenuItem = new JMenuItem("copyPathWithoutQuery");
 
+        JMenuItem copyAllRequestParamValuesSet = new JMenuItem("copyAllRequestParamValuesSet");
+        copyAllRequestParamValuesSet.setToolTipText("copy all request param values set");
+
+        JMenuItem copyAllResponseParamValuesSet = new JMenuItem("copyAllResponseParamValuesSet");
+        copyAllResponseParamValuesSet.setToolTipText("copy all response param values set");
+
         initCopyHostMenuItemActionListener(copyHostMenuItem, requestResponseList);
         initCopyHeaderKeysMenuItemActionListener(copyHeaderKeysMenuItem, requestResponseList);
         initCopyPathWithoutQueryMenuItemActionListener(copyPathWithoutQueryMenuItem, requestResponseList);
+        initCopyAllRequestParamValuesSetMenuItemActionListener(copyAllRequestParamValuesSet, requestResponseList);
+        initCopyAllResponseParamValuesSetMenuItemActionListener(copyAllResponseParamValuesSet, requestResponseList);
 
         menuItemList.add(copyHostMenuItem);
         menuItemList.add(copyHeaderKeysMenuItem);
         menuItemList.add(copyPathWithoutQueryMenuItem);
+        menuItemList.add(copyAllRequestParamValuesSet);
+        menuItemList.add(copyAllResponseParamValuesSet);
         return menuItemList;
+    }
+
+    private void initCopyAllResponseParamValuesSetMenuItemActionListener(JMenuItem copyAllResponseParamValuesSet, List<HttpRequestResponse> requestResponseList) {
+        copyAllResponseParamValuesSet.addActionListener(e -> SwingUtilities.invokeLater(() -> {
+            ParamNameConfigDialog paramNameConfigDialog = new ParamNameConfigDialog(requestResponseList, ValuesType.RESPONSE);
+            paramNameConfigDialog.setVisible(true);
+        }));
+    }
+
+    private void initCopyAllRequestParamValuesSetMenuItemActionListener(JMenuItem copyParamValuesSetMenuItem, List<HttpRequestResponse> requestResponseList) {
+        copyParamValuesSetMenuItem.addActionListener(e -> SwingUtilities.invokeLater(() -> {
+            ParamNameConfigDialog paramNameConfigDialog = new ParamNameConfigDialog(requestResponseList, ValuesType.REQUEST);
+            paramNameConfigDialog.setVisible(true);
+        }));
     }
 
     private void initCopyPathWithoutQueryMenuItemActionListener(JMenuItem copyPathWithoutQueryMenuItem, List<HttpRequestResponse> requestResponseList) {
