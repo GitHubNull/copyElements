@@ -62,8 +62,6 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
-                    <fork>true</fork>
-                    <executable>D:\dev_env\java\jdk\17\bin\javac</executable>
                 </configuration>
             </plugin>
             

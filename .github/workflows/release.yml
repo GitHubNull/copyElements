@@ -41,15 +41,23 @@ jobs:
         
     - name: Build with Maven
       run: mvn clean package --batch-mode --update-snapshots
+      env:
+        MAVEN_OPTS: -Duser.timezone=UTC
       
     - name: Verify build artifacts
       run: |
         ls -la target/
-        if [ ! -f target/copyElements-${{ steps.version.outputs.version }}.jar ]; then
+        # 检查是否有JAR文件生成（文件名可能因Maven Shade Plugin而不同）
+        JAR_FILE=$(find target/ -name "copyElements-*.jar" -type f | head -1)
+        if [ -z "$JAR_FILE" ]; then
           echo "❌ JAR file not found!"
+          echo "Available files in target/:"
+          find target/ -name "*.jar" -type f
           exit 1
         fi
-        echo "✅ Build artifact verified"
+        echo "✅ Build artifact verified: $JAR_FILE"
+        echo "jar_file_path=$JAR_FILE" >> $GITHUB_OUTPUT
+      id: verify_build
         
     - name: Generate Release Notes
       id: release_notes
@@ -117,16 +125,19 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: target/copyElements-${{ steps.version.outputs.version }}.jar
+        asset_path: ${{ steps.verify_build.outputs.jar_file_path }}
         asset_name: copyElements-${{ steps.version.outputs.version }}.jar
         asset_content_type: application/java-archive
         
     - name: Upload checksums
       run: |
         # 生成校验和文件
+        JAR_FILE="${{ steps.verify_build.outputs.jar_file_path }}"
+        JAR_BASENAME=$(basename "$JAR_FILE")
         cd target
-        sha256sum copyElements-${{ steps.version.outputs.version }}.jar > copyElements-${{ steps.version.outputs.version }}.jar.sha256
-        md5sum copyElements-${{ steps.version.outputs.version }}.jar > copyElements-${{ steps.version.outputs.version }}.jar.md5
+        sha256sum "$JAR_BASENAME" > "copyElements-${{ steps.version.outputs.version }}.jar.sha256"
+        md5sum "$JAR_BASENAME" > "copyElements-${{ steps.version.outputs.version }}.jar.md5"
+        echo "Generated checksums for $JAR_BASENAME"
         
     - name: Upload SHA256 checksum
       uses: actions/upload-release-asset@v1
