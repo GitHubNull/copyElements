@@ -117,7 +117,8 @@ public class JsonUtils {
                 // 递归处理值
                 extractValuesRecursively(value, keyName, resultSet);
             }
-        } else if (json instanceof JSONArray jsonArray) {
+        } else if (json instanceof JSONArray) {
+            JSONArray jsonArray = (JSONArray) json;
             for (Object item : jsonArray) {
                 extractValuesRecursively(item, keyName, resultSet);
             }

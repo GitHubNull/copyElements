@@ -5,11 +5,10 @@ import burp.api.montoya.http.message.params.ParsedHttpParameter;
 import top.oxff.CopyElements;
 import top.oxff.model.ValuesType;
 import top.oxff.utils.JsonUtils;
+import top.oxff.utils.ClipboardUtils;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -86,13 +85,10 @@ public class ParamNameConfigDialog extends JDialog {
             sb.append(value).append("\n");
         }
         String content = sb.toString();
-        try {
-            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            StringSelection selection = new StringSelection(content);
-            clipboard.setContents(selection, null);
+        
+        if (ClipboardUtils.copyToClipboard(content)) {
             JOptionPane.showMessageDialog(null, "参数值复制成功！");
-        } catch (Exception exception) {
-            CopyElements.logger.logToError("error: " + exception.getMessage());
+        } else {
             JOptionPane.showMessageDialog(null, "参数值复制失败！");
         }
         CopyElements.logger.logToOutput("copyToClipBoard end....");

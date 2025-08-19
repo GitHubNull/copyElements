@@ -1,0 +1,160 @@
+name: Build and Release
+
+# 当推送符合版本标签格式时触发（如 v1.0.0, v1.2.3, v2.0.0-beta.1 等）
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write # 需要写权限来创建release
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # 获取完整历史，用于生成changelog
+        
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Extract version from tag
+      id: version
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG#v}
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "artifact_name=copyElements-$VERSION.jar" >> $GITHUB_OUTPUT
+        
+    - name: Update pom.xml version
+      run: |
+        mvn versions:set -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
+        
+    - name: Build with Maven
+      run: mvn clean package --batch-mode --update-snapshots
+      
+    - name: Verify build artifacts
+      run: |
+        ls -la target/
+        if [ ! -f target/copyElements-${{ steps.version.outputs.version }}.jar ]; then
+          echo "❌ JAR file not found!"
+          exit 1
+        fi
+        echo "✅ Build artifact verified"
+        
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        # 获取上一个tag
+        PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | sed -n '2p')
+        if [ -z "$PREVIOUS_TAG" ]; then
+          PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+        fi
+        
+        # 生成变更日志
+        echo "## 🚀 What's Changed in ${{ steps.version.outputs.tag }}" > release_notes.md
+        echo "" >> release_notes.md
+        
+        # 获取commits
+        git log ${PREVIOUS_TAG}..${{ steps.version.outputs.tag }} --pretty=format:"- %s" --no-merges >> release_notes.md
+        
+        # 添加下载信息
+        echo "" >> release_notes.md
+        echo "## 📥 Download" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "- **[copyElements-${{ steps.version.outputs.version }}.jar](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/copyElements-${{ steps.version.outputs.version }}.jar)** - Burp Suite Extension JAR file" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "## 🔧 Installation" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "1. Download the JAR file above" >> release_notes.md
+        echo "2. Open Burp Suite → Extensions → Installed → Add" >> release_notes.md
+        echo "3. Select Extension type: Java" >> release_notes.md
+        echo "4. Select the downloaded JAR file" >> release_notes.md
+        echo "5. Click Next to load the extension" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "## 🆕 System Requirements" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "- Burp Suite Professional/Community Edition" >> release_notes.md
+        echo "- Java 17 or higher" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "---" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "**Full Changelog**: [$PREVIOUS_TAG...${{ steps.version.outputs.tag }}](${{ github.server_url }}/${{ github.repository }}/compare/$PREVIOUS_TAG...${{ steps.version.outputs.tag }})" >> release_notes.md
+        
+        # 验证文件生成
+        if [ -f release_notes.md ]; then
+          echo "✅ Release notes generated successfully"
+          cat release_notes.md
+        else
+          echo "❌ Failed to generate release notes"
+          exit 1
+        fi
+        
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: CopyElements ${{ steps.version.outputs.tag }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'rc') }}
+        
+    - name: Upload JAR to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/copyElements-${{ steps.version.outputs.version }}.jar
+        asset_name: copyElements-${{ steps.version.outputs.version }}.jar
+        asset_content_type: application/java-archive
+        
+    - name: Upload checksums
+      run: |
+        # 生成校验和文件
+        cd target
+        sha256sum copyElements-${{ steps.version.outputs.version }}.jar > copyElements-${{ steps.version.outputs.version }}.jar.sha256
+        md5sum copyElements-${{ steps.version.outputs.version }}.jar > copyElements-${{ steps.version.outputs.version }}.jar.md5
+        
+    - name: Upload SHA256 checksum
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/copyElements-${{ steps.version.outputs.version }}.jar.sha256
+        asset_name: copyElements-${{ steps.version.outputs.version }}.jar.sha256
+        asset_content_type: text/plain
+        
+    - name: Upload MD5 checksum  
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/copyElements-${{ steps.version.outputs.version }}.jar.md5
+        asset_name: copyElements-${{ steps.version.outputs.version }}.jar.md5
+        asset_content_type: text/plain
+        
+    - name: Success notification
+      run: |
+        echo "🎉 Release ${{ steps.version.outputs.tag }} created successfully!"
+        echo "📦 Artifact: copyElements-${{ steps.version.outputs.version }}.jar"
+        echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
+        echo ""
+        echo "### Next steps:"
+        echo "1. Update CHANGELOG.md with release details"
+        echo "2. Test the released JAR file in Burp Suite"
+        echo "3. Announce the release to users"
